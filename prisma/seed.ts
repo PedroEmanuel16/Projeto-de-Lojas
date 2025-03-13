@@ -1,32 +1,77 @@
 import { PrismaClient } from "@prisma/client";
-import restaurants from "../data/restaurants";
-import menuCategories from "../data/menuCategories";
-import products from "../data/products";
-import orders from "../data/orders";
-import { ordersProduct } from "../data/ordersProduct";
 
 const prisma = new PrismaClient();
 
 async function main() {
+    // Criando um restaurante
     const restaurant = await prisma.restaurant.create({
-        data: restaurants 
-    })
+        data: {
+            name: "Sabões da Terra",
+            slug: "saboes-da-terra",
+            description: "A melhor loja de sabões naturais.",
+            avatarImageUrl: "https://picsum.photos/200",
+            coverImageUrl: "https://picsum.photos/900",
+        }
+    });
 
-    const menuCategory = await prisma.menuCategories.create({
-        data: menuCategories(restaurant.id)
-    })
+    // Criando uma categoria de menu
+    const menuCategory = await prisma.menuCategory.create({
+        data: {
+            name: "Sabões Líquidos",
+            restaurantId: restaurant.id,
+        }
+    });
 
-    const product = await prisma.product.createManyAndReturn({
-        data: products(restaurant.id, menuCategory.id)
-    })
+    // Criando produtos
+    const products = [
+        {
+            name: "Sabão Líquido para Roupas",
+            description: "Sabão líquido eficaz para lavagem de roupas.",
+            price: 19.99,
+            imageUrl: "https://picsum.photos/200",
+            ingredients: ["Água", "Sodium Lauryl Sulfate", "Fragrância"],
+            menuCategoryId: menuCategory.id,
+            restaurantId: restaurant.id,
+        },
+        {
+            name: "Sabão Sólido para Mãos",
+            description: "Sabão sólido natural para as mãos.",
+            price: 9.99,
+            imageUrl: "https://picsum.photos/200",
+            ingredients: ["Óleo de Coco", "Água", "Soda Cáustica"],
+            menuCategoryId: menuCategory.id,
+            restaurantId: restaurant.id,
+        }
+    ];
 
+    // Criando múltiplos produtos
+    await prisma.product.createMany({
+        data: products
+    });
+
+    // Criando um pedido
     const order = await prisma.order.create({
-        data: orders(restaurant.id)
-    })
+        data: {
+            total: 29.98,
+            status: "PENDING",
+            consumptionMethod: "DELIVERY",
+            restaurantId: restaurant.id,
+        }
+    });
 
-    await prisma.ordersProduct.create({
-        data: ordersProduct(product[0].id, order.id)
-    })
+    // Relacionando produtos ao pedido
+    const product = await prisma.product.findFirst({
+        where: { restaurantId: restaurant.id }
+    });
+
+    await prisma.orderProduct.create({
+        data: {
+            productId: product!.id,
+            orderId: order.id,
+            quantity: 1,
+            price: 19.99
+        }
+    });
 }
 
 main()
@@ -36,4 +81,4 @@ main()
     })
     .finally(async () => {
         await prisma.$disconnect();
-    })
+    });
